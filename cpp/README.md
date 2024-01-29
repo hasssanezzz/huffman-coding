@@ -1,28 +1,31 @@
 # Huffman-coding - CPP
 
-A simple implementation of huffamn-coding written in CPP
+This repository contains a straightforward implementation of Huffman coding in C++.
 
 ## Usage
 
-After you have compiled the program, you can this CLI arguments to compress and decomress file.
+Once you have successfully compiled the program, utilize the following command-line arguments to compress and decompress files.
 
-To compress a file:
+### File compression
+
 ```
-$./program <path/to/my/file.txt> <desired/output/path.bin>
-
-# Example:
-$./program file.txt compressed_data.bin
+$ ./program <path/to/my/file.txt> <desired/output/path.bin>
 ```
 
-To compress a file:
-```
-$./program -d <path/to/my/file.bin> <desired/output/path.text>
+Example:
 
-# Example:
-$./program -d compress_data.bin results.txt
+```
+$ ./program file.txt compressed_data.bin
 ```
 
-## Todos
+### File decompression
 
-- [ ] rebuilding the huffman tree when decoding
-- [ ] use CLI argument parser
+```
+$ ./program -d <path/to/my/file.bin> <desired/output/path.text>
+```
+
+Example:
+
+```
+$ ./program -d compress_data.bin results.txt
+```

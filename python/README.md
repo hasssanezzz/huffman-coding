@@ -1,23 +1,29 @@
-# Huffman-coding
+# Huffman-coding - Python3
 
-A simple implementation of Huffamn-coding written in python
+This repository contains a straightforward implementation of Huffman coding in Python3.
 
 ## Usage
 
-You can use the following CLI arguments to compress and decomress file.
+### File compression
 
-To compress a file:
 ```
-$python3 -m main <path/to/my/file> <desired/output/path.bin>
-
-# Example:
-$python3 -m main file.txt compressed_data.bin
+$ python3 main.py <path/to/my/file.txt> <desired/output/path.bin>
 ```
 
-To decompress a file:
-```
-$python3 -m main d <path/to/my/file.bin> <desired/output/path>
+Example:
 
-# Example:
-$python3 -m main d compress_data.bin results.txt
+```
+$ python3 main.py file.txt compressed_data.bin
+```
+
+### File decompression
+
+```
+$ python3 main.py -d <path/to/my/file.bin> <desired/output/path.text>
+```
+
+Example:
+
+```
+$ python3 main.py -d compress_data.bin results.txt
 ```

@@ -1,23 +1,32 @@
-# Huffman-coding written in C#
+# Huffman-coding - C#
 
-A simple implementation of huffamn-coding written in C#
+This repository contains a straightforward implementation of Huffman coding in C#.
 
 ## Usage
 
-After you have compiled the program, you can use the following CLI arguments to compress and decomress file.
+Once you have successfully compiled the program, utilize the following command-line arguments to compress and decompress files.
 
-To compress a file:
+### File compression
+
 ```
-$./program <path/to/my/file> <desired/output/path.bin>
-
-# Example:
-$./program file.txt compressed_data.bin
+$ ./program <path/to/my/file.txt> <desired/output/path.bin>
 ```
 
-To decompress a file:
-```
-$./program d <path/to/my/file.bin> <desired/output/path>
+Example:
 
-# Example:
-$./program d compress_data.bin results.txt
+```
+$ ./program file.txt compressed_data.bin
+```
+
+### File decompression
+
+```
+$ ./program d <path/to/my/file.bin> <desired/output/path.text>
+```
+
+Example:
+
+```
+$ ./program d compress_data.bin results.txt
+$ ./program decode compress_data.bin results.txt
 ```
