@@ -36,13 +36,13 @@ int main(int argc, char *argv[])
 		build_char_table(root, char_table, "");
 		write_encoded(out_filepath, text, char_table);
 
-		uintmax_t og_file_size = std::filesystem::file_size(in_filepath);
-		uintmax_t compressed_file_size = std::filesystem::file_size(in_filepath);
-		double compressionRate = (1 - compressed_file_size / (double)og_file_size) * 100;
+		int og_file_size = std::filesystem::file_size(in_filepath);
+		int compressed_file_size = std::filesystem::file_size(out_filepath);
+		double compression_rate = (1.0 - (double) compressed_file_size / (double) og_file_size) * 100;
 
 		std::cout << "Original file size: " << og_file_size << " bytes" << '\n';
 		std::cout << "Encoded file size:  " << compressed_file_size << " bytes" << '\n';
-		std::cout << "Compression rate: " << compressionRate << '\n';
+		std::cout << "Compression rate: " << std::fixed << std::setprecision(4) << compression_rate << '\n';
 	}
 
 	return 0;
