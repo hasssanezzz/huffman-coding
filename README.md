@@ -18,6 +18,7 @@ Beyond the educational aspect, Huffman coding is a practically useful endeavor. 
 
 I implemented the Huffman coding algorithm in multiple programming languages, including:
 
+- Go
 - Python
 - C++
 - C#
@@ -35,4 +36,4 @@ Follow the instructions in each language-specific directory to run and test the 
 
 ## Contributing
 
-We welcome contributions to enhance the functionality and maintainability of this Huffman coding implementation. If you're interested, feel free to open issues, submit pull requests, or contribute to the project in any meaningful way.
+I welcome contributions to enhance the functionality and maintainability of this Huffman coding implementation. If you're interested, feel free to open issues, submit pull requests, or contribute to the project in any meaningful way.
