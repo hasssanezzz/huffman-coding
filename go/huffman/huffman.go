@@ -124,21 +124,22 @@ func (h *Huffman) writeCharTable() {
 
 func (h *Huffman) writeBinaryCodes() error {
 	var buff bytes.Buffer
-	// TODO use a string builder
-	binaryCodes := ""
+
+	var builder strings.Builder
 	for _, b := range h.data {
-		binaryCodes += h.table[b]
+		builder.WriteString(h.table[b])
 	}
 
 	// add padding
-	paddingSize := (8 - len(binaryCodes)%8) % 8
+	paddingSize := (8 - builder.Len()%8) % 8
 	for i := 0; i < paddingSize; i++ {
-		binaryCodes += "0"
+		builder.WriteRune('0')
 	}
 
 	buff.WriteByte(byte(uint(paddingSize)))
-	for i := 0; i < len(binaryCodes); i += 8 {
-		substr := binaryCodes[i : i+8]
+	codes, length := builder.String(), builder.Len()
+	for i := 0; i < length; i += 8 {
+		substr := codes[i : i+8]
 
 		b, err := strconv.ParseUint(substr, 2, 8)
 		if err != nil {
@@ -215,7 +216,7 @@ func (h *Huffman) readBinaryCodes(reader *bytes.Reader) ([]byte, error) {
 		return nil, err
 	}
 
-	codes := ""
+	var codes strings.Builder
 	for {
 		b, err := reader.ReadByte()
 		if err != nil {
@@ -225,15 +226,15 @@ func (h *Huffman) readBinaryCodes(reader *bytes.Reader) ([]byte, error) {
 			return nil, fmt.Errorf("err reading a byte from compressed file: %w", err)
 		}
 
-		codes += fmt.Sprintf("%08b", b)
+		codes.WriteString(fmt.Sprintf("%08b", b))
 	}
 
 	var result bytes.Buffer
 	var currCode strings.Builder
 
-	length := len(codes) - int(paddingSizeAsByte)
+	codesStr, length := codes.String(), codes.Len()-int(paddingSizeAsByte)
 	for i := 0; i < length; i++ {
-		currCode.WriteByte(codes[i])
+		currCode.WriteByte(codesStr[i])
 		if b, ok := h.revTable[currCode.String()]; ok {
 			result.WriteByte(b)
 			currCode.Reset()
