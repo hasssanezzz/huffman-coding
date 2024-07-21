@@ -29,7 +29,7 @@ func (h *Huffman) Encode() error {
 	h.table = map[byte]string{}
 	root, err := h.buildTree()
 	if err != nil {
-		return fmt.Errorf("encode function can not build tree: %w", err)
+		return fmt.Errorf("encode function can not build tree: %v", err)
 	}
 
 	h.buildCharTable(root, "")
@@ -143,14 +143,18 @@ func (h *Huffman) writeBinaryCodes() error {
 
 		b, err := strconv.ParseUint(substr, 2, 8)
 		if err != nil {
-			return err
+			return fmt.Errorf("can not parse uint from sub string %q: %v", substr, err)
 		}
 
 		buff.WriteByte(byte(uint(b)))
 	}
 
 	_, err := h.writer.Write(buff.Bytes())
-	return err
+	if err != nil {
+		return fmt.Errorf("can not write binary codes: %v", err)
+	}
+
+	return nil
 }
 
 func (h *Huffman) Decode() error {
@@ -159,52 +163,52 @@ func (h *Huffman) Decode() error {
 
 	data, err := ioutil.ReadAll(h.reader)
 	if err != nil {
-		return err
+		return fmt.Errorf("can not read all data from reader: %v", err)
 	}
 
 	reader := bytes.NewReader(data)
 
 	err = h.readCharTable(reader)
 	if err != nil {
-		return err
+		return fmt.Errorf("can read character table: %v", err)
 	}
 
 	result, err := h.readBinaryCodes(reader)
 	if err != nil {
-		return fmt.Errorf("can not read binary codes: %w", err)
+		return fmt.Errorf("can not read binary codes: %v", err)
 	}
 
 	_, err = h.writer.Write(result)
-	return err
+	return fmt.Errorf("can not decode: %v", err)
 }
 
 func (h *Huffman) readCharTable(reader *bytes.Reader) error {
 	tableLengthAsByte, err := reader.ReadByte()
 	if err != nil {
-		return err
+		return fmt.Errorf("can not read table length: %v", err)
 	}
 	tableLength := uint(tableLengthAsByte)
 
 	for i := 0; i < int(tableLength); i++ {
 		currByte, err := reader.ReadByte()
 		if err != nil {
-			return err
+			return fmt.Errorf("can not read a byte: %v", err)
 		}
 
 		codeSize, err := reader.ReadByte()
 		if err != nil {
-			return err
+			return fmt.Errorf("can not read code size: %v", err)
 		}
 
-		buff := make([]byte, int(codeSize))
-		_, err = reader.Read(buff)
+		codeStrBuffer := make([]byte, int(codeSize))
+		_, err = reader.Read(codeStrBuffer)
 		if err != nil {
-			return err
+			return fmt.Errorf("can not read code string: %v", err)
 		}
 
-		str := string(buff)
-		h.table[currByte] = str
-		h.revTable[str] = currByte
+		code := string(codeStrBuffer)
+		h.table[currByte] = code
+		h.revTable[code] = currByte
 	}
 
 	return nil
@@ -223,7 +227,7 @@ func (h *Huffman) readBinaryCodes(reader *bytes.Reader) ([]byte, error) {
 			if err == io.EOF {
 				break
 			}
-			return nil, fmt.Errorf("err reading a byte from compressed file: %w", err)
+			return nil, fmt.Errorf("err reading a byte from compressed file: %v", err)
 		}
 
 		codes.WriteString(fmt.Sprintf("%08b", b))
