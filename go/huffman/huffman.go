@@ -1,6 +1,7 @@
 package huffman
 
 import (
+	"bufio"
 	"bytes"
 	"container/heap"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Huffman struct {
@@ -27,14 +29,33 @@ func NewHuffman(writer io.Writer, reader io.Reader) *Huffman {
 
 func (h *Huffman) Encode() error {
 	h.table = map[byte]string{}
+
+	start := time.Now()
 	root, err := h.buildTree()
 	if err != nil {
 		return fmt.Errorf("encode function can not build tree: %v", err)
 	}
+	fmt.Printf("tree built in:\t%d\n", time.Since(start).Milliseconds())
 
+	start = time.Now()
 	h.buildCharTable(root, "")
-	h.writeCharTable()
-	return h.writeBinaryCodes()
+	fmt.Printf("table built in:\t%d\n", time.Since(start).Milliseconds())
+
+	start = time.Now()
+	err = h.writeCharTable()
+	if err != nil {
+		return fmt.Errorf("can not write char table: %v", err)
+	}
+	fmt.Printf("table written:\t%d\n", time.Since(start).Milliseconds())
+
+	start = time.Now()
+	err = h.writeBinaryCodes()
+	if err != nil {
+		return fmt.Errorf("can not write binary codes: %v", err)
+	}
+	fmt.Printf("code written:\t%d\n", time.Since(start).Milliseconds())
+
+	return nil
 }
 
 func (h *Huffman) buildTree() (*Node, error) {
@@ -105,25 +126,35 @@ func (h *Huffman) buildCharTable(root *Node, code string) {
 	}
 }
 
-func (h *Huffman) writeCharTable() {
+func (h *Huffman) writeCharTable() error {
 	tableLen := uint(len(h.table))
-	var buff bytes.Buffer
+	writer := bufio.NewWriter(h.writer)
 
 	// write table length
-	buff.WriteByte(byte(tableLen))
+	err := writer.WriteByte(byte(tableLen))
+	if err != nil {
+		return fmt.Errorf("can not write table length %d: %v", tableLen, err)
+	}
 
 	for b, code := range h.table {
 		// write byte and code length
-		buff.Write([]byte{b, byte(uint(len(code)))})
+		_, err = writer.Write([]byte{b, byte(uint(len(code)))})
+		if err != nil {
+			return fmt.Errorf("can not write byte and code length: %v", err)
+		}
+
 		// write code as a string
-		buff.Write([]byte(code))
+		_, err = writer.Write([]byte(code))
+		if err != nil {
+			return fmt.Errorf("can not write code %s as string: %v", code, err)
+		}
 	}
 
-	h.writer.Write(buff.Bytes())
+	return nil
 }
 
 func (h *Huffman) writeBinaryCodes() error {
-	var buff bytes.Buffer
+	writer := bufio.NewWriter(h.writer)
 
 	var builder strings.Builder
 	for _, b := range h.data {
@@ -136,22 +167,24 @@ func (h *Huffman) writeBinaryCodes() error {
 		builder.WriteRune('0')
 	}
 
-	buff.WriteByte(byte(uint(paddingSize)))
-	codes, length := builder.String(), builder.Len()
-	for i := 0; i < length; i += 8 {
-		substr := codes[i : i+8]
-
-		b, err := strconv.ParseUint(substr, 2, 8)
-		if err != nil {
-			return fmt.Errorf("can not parse uint from sub string %q: %v", substr, err)
-		}
-
-		buff.WriteByte(byte(uint(b)))
+	err := writer.WriteByte(byte(uint(paddingSize)))
+	if err != nil {
+		return fmt.Errorf("can not write padding size as byte (%d): %v", paddingSize, err)
 	}
 
-	_, err := h.writer.Write(buff.Bytes())
-	if err != nil {
-		return fmt.Errorf("can not write binary codes: %v", err)
+	codes, length := builder.String(), builder.Len()
+	for i := 0; i < length; i += 8 {
+		bitsString := codes[i : i+8]
+
+		b, err := strconv.ParseUint(bitsString, 2, 8)
+		if err != nil {
+			return fmt.Errorf("can not parse uint from sub string %q: %v", bitsString, err)
+		}
+
+		err = writer.WriteByte(byte(uint(b)))
+		if err != nil {
+			return fmt.Errorf("can not write byte from sub string (%q): %v", bitsString, err)
+		}
 	}
 
 	return nil
@@ -165,21 +198,33 @@ func (h *Huffman) Decode() error {
 	if err != nil {
 		return fmt.Errorf("can not read all data from reader: %v", err)
 	}
-
 	reader := bytes.NewReader(data)
 
+	// read table
+	start := time.Now()
 	err = h.readCharTable(reader)
 	if err != nil {
 		return fmt.Errorf("can read character table: %v", err)
 	}
+	fmt.Printf("char table read in:\t%d\n", time.Since(start).Milliseconds())
 
+	// read binary codes
+	start = time.Now()
 	result, err := h.readBinaryCodes(reader)
 	if err != nil {
 		return fmt.Errorf("can not read binary codes: %v", err)
 	}
+	fmt.Printf("binary codes read in:\t%d\n", time.Since(start).Milliseconds())
 
+	// write decompressed data
+	start = time.Now()
 	_, err = h.writer.Write(result)
-	return fmt.Errorf("can not decode: %v", err)
+	if err != nil {
+		return fmt.Errorf("can not decode: %v", err)
+	}
+	fmt.Printf("results written in:\t%d\n", time.Since(start).Milliseconds())
+
+	return nil
 }
 
 func (h *Huffman) readCharTable(reader *bytes.Reader) error {
@@ -227,7 +272,7 @@ func (h *Huffman) readBinaryCodes(reader *bytes.Reader) ([]byte, error) {
 			if err == io.EOF {
 				break
 			}
-			return nil, fmt.Errorf("err reading a byte from compressed file: %v", err)
+			return nil, fmt.Errorf("can not read a byte from compressed file: %v", err)
 		}
 
 		codes.WriteString(fmt.Sprintf("%08b", b))
