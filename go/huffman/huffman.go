@@ -6,7 +6,7 @@ import (
 	"container/heap"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -14,16 +14,15 @@ import (
 
 type Huffman struct {
 	writer   io.Writer
-	reader   io.Reader
+	file     *os.File
 	table    map[byte]string
 	revTable map[string]byte
-	data     []byte
 }
 
-func NewHuffman(writer io.Writer, reader io.Reader) *Huffman {
+func NewHuffman(writer io.Writer, file *os.File) *Huffman {
 	return &Huffman{
 		writer: writer,
-		reader: reader,
+		file:   file,
 	}
 }
 
@@ -59,19 +58,7 @@ func (h *Huffman) Encode() error {
 }
 
 func (h *Huffman) buildTree() (*Node, error) {
-	freq := map[byte]int{}
-
-	// read all bytes
-	bytes, err := ioutil.ReadAll(h.reader)
-	if err != nil {
-		return nil, err
-	}
-	h.data = bytes
-
-	// count bytes
-	for _, b := range bytes {
-		freq[b]++
-	}
+	freq, _ := ConcurrentFrequencyRead(h.file)
 
 	nodes := make([]Node, len(freq))
 	pq, i := make(PriorityQueue, 0), 0
@@ -129,6 +116,7 @@ func (h *Huffman) buildCharTable(root *Node, code string) {
 func (h *Huffman) writeCharTable() error {
 	tableLen := uint(len(h.table))
 	writer := bufio.NewWriter(h.writer)
+	defer writer.Flush()
 
 	// write table length
 	err := writer.WriteByte(byte(tableLen))
@@ -153,12 +141,45 @@ func (h *Huffman) writeCharTable() error {
 	return nil
 }
 
+func (h *Huffman) readChunksIntoStringBuilder(builder *strings.Builder) error {
+	chunkSize := 1024 * 1024
+	_, err := h.file.Seek(0, io.SeekStart)
+	if err != nil {
+		return err
+	}
+
+	for {
+		buff := make([]byte, chunkSize)
+		n, err := h.file.Read(buff)
+		if err != nil && err != io.EOF {
+			return err
+		}
+
+		if n == 0 {
+			break
+		}
+
+		for i := 0; i < n; i++ {
+			code := h.table[buff[i]]
+			builder.WriteString(code)
+		}
+
+		if n != chunkSize {
+			break
+		}
+	}
+
+	return nil
+}
+
 func (h *Huffman) writeBinaryCodes() error {
 	writer := bufio.NewWriter(h.writer)
+	defer writer.Flush()
 
 	var builder strings.Builder
-	for _, b := range h.data {
-		builder.WriteString(h.table[b])
+	err := h.readChunksIntoStringBuilder(&builder)
+	if err != nil {
+		return err
 	}
 
 	// add padding
@@ -167,7 +188,7 @@ func (h *Huffman) writeBinaryCodes() error {
 		builder.WriteRune('0')
 	}
 
-	err := writer.WriteByte(byte(uint(paddingSize)))
+	err = writer.WriteByte(byte(uint(paddingSize)))
 	if err != nil {
 		return fmt.Errorf("can not write padding size as byte (%d): %v", paddingSize, err)
 	}
@@ -194,15 +215,11 @@ func (h *Huffman) Decode() error {
 	h.table = map[byte]string{}
 	h.revTable = map[string]byte{}
 
-	data, err := ioutil.ReadAll(h.reader)
-	if err != nil {
-		return fmt.Errorf("can not read all data from reader: %v", err)
-	}
-	reader := bytes.NewReader(data)
+	reader := bufio.NewReader(h.file)
 
 	// read table
 	start := time.Now()
-	err = h.readCharTable(reader)
+	err := h.readCharTable(reader)
 	if err != nil {
 		return fmt.Errorf("can read character table: %v", err)
 	}
@@ -227,7 +244,7 @@ func (h *Huffman) Decode() error {
 	return nil
 }
 
-func (h *Huffman) readCharTable(reader *bytes.Reader) error {
+func (h *Huffman) readCharTable(reader *bufio.Reader) error {
 	tableLengthAsByte, err := reader.ReadByte()
 	if err != nil {
 		return fmt.Errorf("can not read table length: %v", err)
@@ -252,14 +269,13 @@ func (h *Huffman) readCharTable(reader *bytes.Reader) error {
 		}
 
 		code := string(codeStrBuffer)
-		h.table[currByte] = code
 		h.revTable[code] = currByte
 	}
 
 	return nil
 }
 
-func (h *Huffman) readBinaryCodes(reader *bytes.Reader) ([]byte, error) {
+func (h *Huffman) readBinaryCodes(reader *bufio.Reader) ([]byte, error) {
 	paddingSizeAsByte, err := reader.ReadByte()
 	if err != nil {
 		return nil, err
